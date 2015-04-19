@@ -9,15 +9,6 @@ import Prop._
 
 abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
 
-  private def toList(h: H): List[A] = {
-    def toListAcc(list: List[A], h: H): List[A] = {
-      if(isEmpty(h)) list
-      else toListAcc(list :+ findMin(h) , deleteMin(h))
-    }
-    
-    toListAcc(List(), h)
-  }
-  
   private def min(x: A, y: A) = if(x < y) x else y
   
   property("if insert only one element, findMin returns that element") = forAll { a: Int =>
@@ -36,16 +27,25 @@ abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
     val list = toList(h)
     list == list.sorted
   }
+
+  private def toList(h: H): List[A] = {
+    def toListAcc(list: List[A], h: H): List[A] = {
+      if(isEmpty(h)) list
+      else toListAcc(list :+ findMin(h) , deleteMin(h))
+    }
+    
+    toListAcc(List(), h)
+  }
   
   property("if meld two heaps, findMin on melded heap returns min of the two heaps") = forAll { (h: H, h1: H) =>
     findMin(meld(h, h1)) == min(findMin(h), findMin(h1))
   }
   
-  property("") = forAll { (h: H, h1: H) =>
+  property("meld is commutative") = forAll { (h: H, h1: H) =>
     toList(meld(h, h1)) == toList(meld(h1, h))
   }
   
-  property("if insert min") = forAll{ h: H =>
+  property("deleteMin delete min value, despite of the rank") = forAll{ h: H =>
     toList(h) == toList(deleteMin(insert(findMin(h), h)))
   }
   
