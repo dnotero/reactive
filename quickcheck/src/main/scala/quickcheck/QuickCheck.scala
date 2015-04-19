@@ -26,12 +26,12 @@ abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
     list == list.sorted
   }
 
-  property("if meld two heaps, findMin on melded heap returns min of the two heaps") = forAll { (h: H, h1: H) =>
-    findMin(meld(h, h1)) == min(findMin(h), findMin(h1))
+  property("if meld two heaps, findMin on melded heap returns min of the two heaps") = forAll { (h1: H, h2: H) =>
+    findMin(meld(h1, h2)) == min(findMin(h1), findMin(h2))
   }
   
-  property("meld is commutative") = forAll { (h: H, h1: H) =>
-    toList(meld(h, h1)) == toList(meld(h1, h))
+  property("meld is commutative") = forAll { (h1: H, h2: H) =>
+    toList(meld(h1, h2)) == toList(meld(h2, h1))
   }
   
   property("deleteMin delete min value, despite of the rank") = forAll{ h: H =>
