@@ -9,8 +9,6 @@ import Prop._
 
 abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
 
-  private def min(x: A, y: A) = if(x < y) x else y
-  
   property("if insert only one element, findMin returns that element") = forAll { a: Int =>
     findMin(insert(a, empty)) == a
   }
@@ -28,15 +26,6 @@ abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
     list == list.sorted
   }
 
-  private def toList(h: H): List[A] = {
-    def toListAcc(list: List[A], h: H): List[A] = {
-      if(isEmpty(h)) list
-      else toListAcc(list :+ findMin(h) , deleteMin(h))
-    }
-    
-    toListAcc(List(), h)
-  }
-  
   property("if meld two heaps, findMin on melded heap returns min of the two heaps") = forAll { (h: H, h1: H) =>
     findMin(meld(h, h1)) == min(findMin(h), findMin(h1))
   }
@@ -48,6 +37,17 @@ abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
   property("deleteMin delete min value, despite of the rank") = forAll{ h: H =>
     toList(h) == toList(deleteMin(insert(findMin(h), h)))
   }
+
+  private def toList(h: H): List[A] = {
+    def toListAcc(list: List[A], h: H): List[A] = {
+      if(isEmpty(h)) list
+      else toListAcc(list :+ findMin(h) , deleteMin(h))
+    }
+    
+    toListAcc(List(), h)
+  }
+  
+  private def min(x: A, y: A) = if(x < y) x else y
   
   lazy val genHeap: Gen[H] = for {
     v <- arbitrary[Int]
