@@ -51,4 +51,49 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
     assert(resultRed2() == "red")
   }
 
+  test("Simple expression of two values") {
+    val a = Literal(8)
+    val b = Literal(2)
+    val plus = Calculator.computeValues(Map("a" -> Signal { Plus(a, b) }))
+    val minus = Calculator.computeValues(Map("a" -> Signal { Minus(a, b) }))
+    val times = Calculator.computeValues(Map("a" -> Signal { Times(a, b) }))
+    val divide = Calculator.computeValues(Map("a" -> Signal { Divide(a, b) }))
+
+    assert(plus("a")() == 10)
+    assert(minus("a")() == 6)
+    assert(times("a")() == 16)
+    assert(divide("a")() == 4)
+  }
+
+  test("Ref expression with simple values") {
+    val a = Literal(8)
+    val b = Literal(2)
+    val c = Ref("a")
+    val result = Calculator.computeValues(Map(
+      "a" -> Signal { Plus(a, b) }, 
+      "b" -> Signal { Times(c, b) }
+    ))
+
+    assert(result("a")() == 10)
+    assert(result("b")() == 20)
+  }
+
+  test("Ref variables that don't exists returns NaN") {
+    val result = Calculator.computeValues(Map(
+      "a" -> Signal { Plus(Ref("b"), Literal(2)) }
+    ))
+
+    assert(result("a")().isNaN)
+  }
+
+  test("Ref expression with cyclic dependencies throws exception") {
+    val result = Calculator.computeValues(Map(
+      "a" -> Signal { Plus(Ref("b"), Literal(2)) }, 
+      "b" -> Signal { Plus(Ref("a"), Literal(3)) }
+    ))
+
+    assert(result("a")().isNaN)
+  }
+
+
 }
