@@ -69,6 +69,7 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
     val a = Literal(8)
     val b = Literal(2)
     val c = Ref("a")
+
     val result = Calculator.computeValues(Map(
       "a" -> Signal { Plus(a, b) }, 
       "b" -> Signal { Times(c, b) }
@@ -76,6 +77,25 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
 
     assert(result("a")() == 10)
     assert(result("b")() == 20)
+  }
+
+  test("Ref expressions with more complicated values") {
+    val a = Plus(Literal(1), Literal(2)) // 3
+    val b = Times(Ref("a"), Literal(3))  // 9
+    val c = Times(Ref("a"), Ref("b")) // 27
+    val d = Divide(Minus(Ref("c"), Literal(3)), Plus(Literal(3), Literal(0))) // 8
+
+    val result = Calculator.computeValues(Map(
+      "a" -> Signal { a }, 
+      "b" -> Signal { b },
+      "c" -> Signal { c },
+      "d" -> Signal { d }
+    ))
+
+    assert(result("a")() == 3)
+    assert(result("b")() == 9)
+    assert(result("c")() == 27)
+    assert(result("d")() == 8)
   }
 
   test("Ref variables that don't exists returns NaN") {
