@@ -7,3 +7,6 @@ project/target/*
 project/project/*
 target/*
 web-ui/target/*
+*/project/target/*
+*/project/project/*
+*/target/*
