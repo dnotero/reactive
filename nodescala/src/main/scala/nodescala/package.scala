@@ -62,7 +62,7 @@ package object nodescala {
 
     /** Returns a future with a unit value that is completed after time `t`.
      */
-    def delay(t: Duration): Future[Unit] = ???
+    def delay(t: Duration): Future[Unit] = blocking { Await.ready(Future.success(), t) }
 
     /** Completes this future with user input.
      */
@@ -90,7 +90,7 @@ package object nodescala {
      *  However, it is also non-deterministic -- it may throw or return a value
      *  depending on the current state of the `Future`.
      */
-    def now: T = ???
+    def now: T = blocking { Await.result(Future.success(), 0 nano) }
 
     /** Continues the computation of this future by taking the current future
      *  and mapping it into another future.
