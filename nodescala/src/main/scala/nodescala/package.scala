@@ -30,7 +30,16 @@ package object nodescala {
      *  The values in the list are in the same order as corresponding futures `fs`.
      *  If any of the futures `fs` fails, the resulting future also fails.
      */
-    def all[T](fs: List[Future[T]]): Future[List[T]] = ???
+    def all[T](fs: List[Future[T]]): Future[List[T]] = 
+      fs match {
+        case Nil => Future(Nil)
+        case (x::xs) =>
+          x.flatMap { y => 
+            all(xs).flatMap { ys => 
+              Future(y::ys)
+            }
+          }
+      }
     
     /** Given a list of futures `fs`, returns the future holding the value of the future from `fs` that completed first.
      *  If the first completing future in `fs` fails, then the result is failed as well.
