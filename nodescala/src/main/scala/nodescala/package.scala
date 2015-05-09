@@ -107,16 +107,8 @@ package object nodescala {
      *  The function `cont` is called only after the current future completes.
      *  The resulting future contains a value returned by `cont`.
      */
-    def continueWith[S](cont: Future[T] => S): Future[S] = {
-      val p = Promise[S]()
-
-      f.onComplete {
-        case Failure(t) => p.complete(Failure(t))
-        case Success(v) => p.completeWith(Future(cont(f)))
-      }
-
-      p.future
-    }
+    def continueWith[S](cont: Future[T] => S): Future[S] = 
+      continueHelper[Future[T], S](cont, (a: T) => f)
 
     /** Continues the computation of this future by taking the result
      *  of the current future and mapping it into another future.
@@ -124,12 +116,15 @@ package object nodescala {
      *  The function `cont` is called only after the current future completes.
      *  The resulting future contains a value returned by `cont`.
      */
-    def continue[S](cont: Try[T] => S): Future[S] = {
+    def continue[S](cont: Try[T] => S): Future[S] = 
+      continueHelper[Try[T], S](cont, (a: T) => Try(a))
+
+    private def continueHelper[R, S](cont: R => S, g: T => R): Future[S] = {
       val p = Promise[S]()
 
       f.onComplete {
         case Failure(t) => p.complete(Failure(t))
-        case Success(v) => p.completeWith(Future(cont(Try(v))))
+        case Success(v) => p.completeWith(Future(cont(g(v))))
       }
 
       p.future
