@@ -1,0 +1,12 @@
+.cache
+.classpath
+.project
+.settings
+bin/*
+project/target/*
+project/project/*
+target/*
+web-ui/target/*
+*/project/target/*
+*/project/project/*
+*/target/*
