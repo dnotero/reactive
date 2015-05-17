@@ -51,7 +51,12 @@ trait SwingApi {
       * @param field the text field
       * @return an observable with a stream of text field updates
       */
-    def textValues: Observable[String] = ???
+    def textValues: Observable[String] = 
+      Observable.create[String](observer => {
+        field subscribe { case ValueChanged(f) => observer.onNext(f.text) }
+        Subscription { observer.onCompleted() }
+      })
+
   }
 
   implicit class ButtonOps(button: Button) {
