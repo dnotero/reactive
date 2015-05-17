@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{ Try, Success, Failure }
 import scala.swing.Reactions.Reaction
 import scala.swing.event.Event
-import rx.lang.scala.Observable
+import rx.lang.scala.{ Observable, Subscription, Subscriber }
 
 /** Basic facilities for dealing with Swing-like components.
 *
@@ -52,7 +52,6 @@ trait SwingApi {
       * @return an observable with a stream of text field updates
       */
     def textValues: Observable[String] = ???
-
   }
 
   implicit class ButtonOps(button: Button) {
