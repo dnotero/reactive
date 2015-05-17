@@ -66,7 +66,11 @@ trait SwingApi {
      * @param field the button
      * @return an observable with a stream of buttons that have been clicked
      */
-    def clicks: Observable[Button] = ???
+    def clicks: Observable[Button] = 
+      Observable.create[Button](observer => {
+        button subscribe { case ButtonClicked(b) => observer.onNext(b) }
+        Subscription { observer.onCompleted() }
+      })
   }
 
 }
