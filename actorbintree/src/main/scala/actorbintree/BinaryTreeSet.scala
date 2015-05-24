@@ -68,6 +68,11 @@ class BinaryTreeSet extends Actor {
   /** Accepts `Operation` and `GC` messages. */
   val normal: Receive = { 
     case op: Operation => root ! op
+
+    case GC => 
+      val newRoot = createRoot
+      root ! CopyTo(newRoot)
+      context become garbageCollecting(newRoot)
   }
 
   // optional
@@ -75,7 +80,28 @@ class BinaryTreeSet extends Actor {
     * `newRoot` is the root of the new binary tree where we want to copy
     * all non-removed elements into.
     */
-  def garbageCollecting(newRoot: ActorRef): Receive = ???
+  def garbageCollecting(newRoot: ActorRef): Receive = {
+    case GC =>
+    
+    case op: Operation => 
+      pendingQueue = pendingQueue.enqueue(op)
+    
+    case CopyFinished =>
+      processPendingOperations(newRoot)
+      changeRoot(newRoot)
+      context become normal
+  }
+
+  private def processPendingOperations(newRoot: ActorRef): Unit =
+    while(!pendingQueue.isEmpty) {
+      newRoot ! pendingQueue.head
+      pendingQueue = pendingQueue.tail
+    }
+
+  private def changeRoot(newRoot: ActorRef): Unit = {
+    root ! PoisonPill
+    root = newRoot
+  }
 
 }
 
@@ -105,21 +131,24 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
   /** Handles `Operation` messages and `CopyTo` requests. */
   val normal: Receive = { 
     case Insert(requester, id, element) =>
-      if(elem == element) {
-        removed = false
-        requester ! OperationFinished(id)
-      } else getChild(element) ! Insert(requester, id, element)
+      if(elem == element) process(requester, id, false)
+      else getChild(element) ! Insert(requester, id, element)
 
     case Remove(requester, id, element) => 
-      if(elem == element) {
-        removed = true
-        requester ! OperationFinished(id)
-      } else getChild(element) ! Remove(requester, id, element)
+      if(elem == element) process(requester, id, true)
+      else getChild(element) ! Remove(requester, id, element)
 
     case Contains(requester, id, element) => 
       if(element == elem) requester ! ContainsResult(id, !removed)
       else if(element > elem) containsChild(Right, requester, id, element)
       else containsChild(Left, requester, id, element)
+
+    case CopyTo(newRoot) =>
+      if(removed && subtrees.isEmpty) context.parent ! CopyFinished
+      else copyTo(newRoot)
+
+    case CopyFinished =>
+
   }
 
   private def getChild(element: Int): ActorRef =
@@ -138,15 +167,43 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
   private def getDefaultNode(element: Int): ActorRef = 
     context.actorOf(props(element, initiallyRemoved = true))
 
+  private def process(requester: ActorRef, id: Int, isRemoved: Boolean): Unit = {
+    removed = isRemoved
+    requester ! OperationFinished(id)
+  }
+
   private def containsChild(pos: Position, requester: ActorRef, id: Int, element: Int): Unit =
     if(subtrees.contains(pos)) subtrees(pos) ! Contains(requester, id, element)
     else requester ! ContainsResult(id, false)
+
+  private def copyTo(newRoot: ActorRef): Unit = {
+    val children = subtrees.values.toSet
+    children foreach { _ ! CopyTo(newRoot) }
+    
+    if(!removed) newRoot ! Insert(self, self.hashCode, elem)
+    else self ! OperationFinished(self.hashCode)
+    
+    context become copying(children, removed)
+  }
 
   // optional
   /** `expected` is the set of ActorRefs whose replies we are waiting for,
     * `insertConfirmed` tracks whether the copy of this node to the new tree has been confirmed.
     */
-  def copying(expected: Set[ActorRef], insertConfirmed: Boolean): Receive = ???
+  def copying(expected: Set[ActorRef], insertConfirmed: Boolean): Receive = {
+    case CopyFinished => process(expected - sender, insertConfirmed)
+    
+    case OperationFinished(id) => process(expected, true)
+  }
+
+  private def process(expected: Set[ActorRef], insertConfirmed: Boolean) =
+    if(expected.isEmpty && insertConfirmed) restore
+    else context become copying(expected, insertConfirmed)
+
+  private def restore = {
+    context.parent ! CopyFinished
+    context become normal
+  }
 
 
 }
