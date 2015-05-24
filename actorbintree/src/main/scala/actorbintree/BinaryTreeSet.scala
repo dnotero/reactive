@@ -67,9 +67,20 @@ class BinaryTreeSet extends Actor {
   // optional
   /** Accepts `Operation` and `GC` messages. */
   val normal: Receive = { 
-    case Insert(requester, id, elem) => root ! Insert(self, id, elem)
-    case Remove(requester, id, elem) => root ! Remove(self, id, elem)
-    case OperationFinished(id) => context.parent ! OperationFinished(id)
+    case Insert(requester, id, elem) => 
+      root ! Insert(self, id, elem)
+
+    case Remove(requester, id, elem) => 
+      root ! Remove(self, id, elem)
+
+    case OperationFinished(id) => 
+      context.parent ! OperationFinished(id)
+
+    case Contains(requester, id, elem) => 
+      root ! Contains(self, id, elem)
+
+    case ContainsResult(id, result) => 
+      context.parent ! ContainsResult(id, result)
   }
 
   // optional
@@ -107,28 +118,43 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
   /** Handles `Operation` messages and `CopyTo` requests. */
   val normal: Receive = { 
     case Insert(requester, id, element) => 
-      if(elem == element) context.parent ! OperationFinished(id)
+      if(elem == element) requester ! OperationFinished(id)
       else getChild(element) ! Insert(self, id, element)
 
     case Remove(requester, id, element) => 
       if(elem == element) {
         removed = true 
-        context.parent ! OperationFinished(id)
+        requester ! OperationFinished(id)
       } else getChild(element) ! Remove(self, id, element)
 
-    case OperationFinished(id) => context.parent ! OperationFinished(id)
+    case OperationFinished(id) => 
+      context.parent ! OperationFinished(id)
+
+    case Contains(requester, id, element) => 
+      if(element == elem) requester ! ContainsResult(id, true)
+      else if(element > elem) containsChild(Right, requester, id, elem)
+      else containsChild(Left, requester, id, elem)
+
+    case ContainsResult(id, result) => context.parent ! ContainsResult(id, result)
   }
 
   private def getChild(element: Int): ActorRef =
     if(element > elem) getSubtree(element, Right)
     else getSubtree(element, Left)
 
-  private def getSubtree(element: Int, pos: Position): ActorRef = {
-    if(!(subtrees contains pos)) subtrees += (pos -> getDefaultNode(element))
-    subtrees(pos)
-  }
+  private def getSubtree(element: Int, pos: Position): ActorRef =
+    if(subtrees contains pos) subtrees(pos)
+    else {
+      subtrees = subtrees + (pos -> getDefaultNode(element))
+      subtrees(pos)
+    }
 
-  private def getDefaultNode(element: Int) = context.actorOf(BinaryTreeNode.props(element, initiallyRemoved = true))
+  private def getDefaultNode(element: Int): ActorRef = 
+    context.actorOf(BinaryTreeNode.props(element, initiallyRemoved = true))
+
+  private def containsChild(pos: Position, requester: ActorRef, id: Int, element: Int): Unit =
+    if(!(subtrees contains pos)) requester ! ContainsResult(id, false)
+    else subtrees(pos) ! Contains(self, id, elem)
 
   // optional
   /** `expected` is the set of ActorRefs whose replies we are waiting for,
