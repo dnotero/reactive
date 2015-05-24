@@ -68,6 +68,7 @@ class BinaryTreeSet extends Actor {
   /** Accepts `Operation` and `GC` messages. */
   val normal: Receive = { 
     case Insert(requester, id, elem) => root ! Insert(self, id, elem)
+    case Remove(requester, id, elem) => root ! Remove(self, id, elem)
     case OperationFinished(id) => context.parent ! OperationFinished(id)
   }
 
@@ -108,15 +109,26 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
     case Insert(requester, id, element) => 
       if(elem == element) context.parent ! OperationFinished(id)
       else getChild(element) ! Insert(self, id, element)
+
+    case Remove(requester, id, element) => 
+      if(elem == element) {
+        removed = true 
+        context.parent ! OperationFinished(id)
+      } else getChild(element) ! Remove(self, id, element)
+
     case OperationFinished(id) => context.parent ! OperationFinished(id)
   }
 
-  private def getChild(element: Int): ActorRef = {
-    val defaultChild = context.actorOf(BinaryTreeNode.props(element, initiallyRemoved = false))
-    
-    if(element > elem) subtrees getOrElse (Right, defaultChild) 
-    else subtrees getOrElse (Left, defaultChild)
+  private def getChild(element: Int): ActorRef =
+    if(element > elem) getSubtree(element, Right)
+    else getSubtree(element, Left)
+
+  private def getSubtree(element: Int, pos: Position): ActorRef = {
+    if(!(subtrees contains pos)) subtrees += (pos -> getDefaultNode(element))
+    subtrees(pos)
   }
+
+  private def getDefaultNode(element: Int) = context.actorOf(BinaryTreeNode.props(element, initiallyRemoved = true))
 
   // optional
   /** `expected` is the set of ActorRefs whose replies we are waiting for,
