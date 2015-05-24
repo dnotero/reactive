@@ -67,20 +67,22 @@ class BinaryTreeSet extends Actor {
   // optional
   /** Accepts `Operation` and `GC` messages. */
   val normal: Receive = { 
-    case Insert(requester, id, elem) => 
-      root ! Insert(self, id, elem)
+    case Insert(requester, id, elem) =>
+      println(s"Insert $id - $elem - ${context.parent}")
+      root ! Insert(requester, id, elem)
 
-    case Remove(requester, id, elem) => 
-      root ! Remove(self, id, elem)
+    case Remove(requester, id, elem) =>
+      root ! Remove(requester, id, elem)
 
-    case OperationFinished(id) => 
-      context.parent ! OperationFinished(id)
+    case OperationFinished(id) =>
+      println(s"OperationFinished - $id - ${context.parent}")
+      root ! OperationFinished(id)
 
-    case Contains(requester, id, elem) => 
-      root ! Contains(self, id, elem)
+    case Contains(requester, id, elem) =>
+      root ! Contains(requester, id, elem)
 
     case ContainsResult(id, result) => 
-      context.parent ! ContainsResult(id, result)
+      root ! ContainsResult(id, result)
   }
 
   // optional
@@ -117,25 +119,22 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
   // optional
   /** Handles `Operation` messages and `CopyTo` requests. */
   val normal: Receive = { 
-    case Insert(requester, id, element) => 
-      if(elem == element) requester ! OperationFinished(id)
-      else getChild(element) ! Insert(self, id, element)
+    case Insert(requester, id, element) =>
+      if(elem == element) {
+        removed = false
+        requester ! OperationFinished(id)
+      } else getChild(element) ! Insert(requester, id, element)
 
     case Remove(requester, id, element) => 
       if(elem == element) {
         removed = true 
         requester ! OperationFinished(id)
-      } else getChild(element) ! Remove(self, id, element)
-
-    case OperationFinished(id) => 
-      context.parent ! OperationFinished(id)
+      } else getChild(element) ! Remove(requester, id, element)
 
     case Contains(requester, id, element) => 
-      if(element == elem) requester ! ContainsResult(id, true)
+      if(element == elem) requester ! ContainsResult(id, !removed)
       else if(element > elem) containsChild(Right, requester, id, elem)
       else containsChild(Left, requester, id, elem)
-
-    case ContainsResult(id, result) => context.parent ! ContainsResult(id, result)
   }
 
   private def getChild(element: Int): ActorRef =
@@ -150,11 +149,11 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
     }
 
   private def getDefaultNode(element: Int): ActorRef = 
-    context.actorOf(BinaryTreeNode.props(element, initiallyRemoved = true))
+    context.actorOf(props(element, false))
 
   private def containsChild(pos: Position, requester: ActorRef, id: Int, element: Int): Unit =
-    if(!(subtrees contains pos)) requester ! ContainsResult(id, false)
-    else subtrees(pos) ! Contains(self, id, elem)
+    if(subtrees contains pos) subtrees(pos) ! Contains(self, id, elem)
+    else requester ! ContainsResult(id, !removed)
 
   // optional
   /** `expected` is the set of ActorRefs whose replies we are waiting for,

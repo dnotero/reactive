@@ -46,6 +46,20 @@ class BinaryTreeSuite(_system: ActorSystem) extends TestKit(_system) with FunSui
     // the grader also verifies that enough actors are created
   }
 
+  test("proper contains") {
+    val topNode = system.actorOf(Props[BinaryTreeSet])
+
+    topNode ! Contains(testActor, id = 1, 1)
+    expectMsg(ContainsResult(1, false))
+  }
+
+    test("proper inserts") {
+    val topNode = system.actorOf(Props[BinaryTreeSet])
+
+    topNode ! Insert(testActor, id = 2, 1)
+    expectMsg(OperationFinished(2))
+  }
+
   test("proper inserts and lookups") {
     val topNode = system.actorOf(Props[BinaryTreeSet])
 
