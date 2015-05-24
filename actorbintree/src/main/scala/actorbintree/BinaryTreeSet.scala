@@ -68,14 +68,12 @@ class BinaryTreeSet extends Actor {
   /** Accepts `Operation` and `GC` messages. */
   val normal: Receive = { 
     case Insert(requester, id, elem) =>
-      println(s"Insert $id - $elem - ${context.parent}")
       root ! Insert(requester, id, elem)
 
     case Remove(requester, id, elem) =>
       root ! Remove(requester, id, elem)
 
     case OperationFinished(id) =>
-      println(s"OperationFinished - $id - ${context.parent}")
       root ! OperationFinished(id)
 
     case Contains(requester, id, elem) =>
@@ -127,14 +125,14 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
 
     case Remove(requester, id, element) => 
       if(elem == element) {
-        removed = true 
+        removed = true
         requester ! OperationFinished(id)
       } else getChild(element) ! Remove(requester, id, element)
 
     case Contains(requester, id, element) => 
       if(element == elem) requester ! ContainsResult(id, !removed)
-      else if(element > elem) containsChild(Right, requester, id, elem)
-      else containsChild(Left, requester, id, elem)
+      else if(element > elem) containsChild(Right, requester, id, element)
+      else containsChild(Left, requester, id, element)
   }
 
   private def getChild(element: Int): ActorRef =
@@ -143,17 +141,19 @@ class BinaryTreeNode(val elem: Int, initiallyRemoved: Boolean) extends Actor {
 
   private def getSubtree(element: Int, pos: Position): ActorRef =
     if(subtrees contains pos) subtrees(pos)
-    else {
-      subtrees = subtrees + (pos -> getDefaultNode(element))
-      subtrees(pos)
-    }
+    else createSubtree(pos, element)
+
+  private def createSubtree(pos: Position, element: Int): ActorRef = {
+    subtrees = subtrees + (pos -> getDefaultNode(element))
+    subtrees(pos)
+  }
 
   private def getDefaultNode(element: Int): ActorRef = 
-    context.actorOf(props(element, false))
+    context.actorOf(props(element, initiallyRemoved = true))
 
   private def containsChild(pos: Position, requester: ActorRef, id: Int, element: Int): Unit =
-    if(subtrees contains pos) subtrees(pos) ! Contains(self, id, elem)
-    else requester ! ContainsResult(id, !removed)
+    if(subtrees.contains(pos)) subtrees(pos) ! Contains(requester, id, element)
+    else requester ! ContainsResult(id, false)
 
   // optional
   /** `expected` is the set of ActorRefs whose replies we are waiting for,
